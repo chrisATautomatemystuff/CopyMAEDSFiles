@@ -1,19 +1,20 @@
 <#
 .SYNOPSIS
-  Gathers and downloads files from Midwest Management Summit conference sessions
+  Gathers and downloads files from MAEDS Fall Conference sessions
 .DESCRIPTION
-  This script gathers and downloads files from Midwest Management Summit conference sessions. You must
+  This script gathers and downloads files from MAEDS Fall Conference sessions. You must
   have a valid login to Sched for the year you're attempting to download.
 .INPUTS
   None
 .OUTPUTS
   All session content from the specified years.
 .NOTES
-  Version:        1.6
-  Author:         Andrew Johnson
-  Modified Date:  10/20/2024
-  Purpose/Change: Updated for MMS Flamingo Edition
+  Version:        1.0
+  Author:         Chris Thomas
+  Modified Date:  10/28/2024
+  Purpose/Change: Forked from MMS Flamingo Edition version to MAEDS version
 
+  Original author (2024 script): Andrew Johnson - https://www.andrewj.net/
   Original author (2015 script): Duncan Russell - http://www.sysadmintechnotes.com
   Edits made by:
     Evan Yeung - https://www.forevanyeung.com
@@ -37,36 +38,37 @@
                                                        Sets default directory for non-Microsoft OS to be $HOME\Downloads\MMSContent. Ugly basic HTML parser for the
                                                        session info file, but it should suffice for now.
     04/28/2024    1.5        Andrew Johnson            Updated and tested to include 2024 at MOA
-    10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition 
+    10/20/2024    1.6        Andrew Johnson            Updated and tested to include MMS Flamingo Edition
+    10/28/2024    1.0        Chris Thomas              Forked the MMS Flamingo Edition script to use for MAEDS members
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -ConferenceList @('2024atmoa','2024fll');
+  .\Get-MAEDSSessionContent.ps1 -ConferenceList @('2023','2024');
 
-  Downloads all MMS session content from 2024 at MOA and 2024 Flamingo Edition to C:\Conferences\MMS\
-
-.EXAMPLE
-  .\Get-MMSSessionContent.ps1 -DownloadLocation "C:\Temp\MMS" -ConferenceId 2024fll
-
-  Downloads all MMS session content from 2024 Flamingo Edition to C:\Temp\MMS\
+  Downloads all MAEDS session content from 2023 and 2024 to C:\Conferences\MAEDS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -All
+  .\Get-MAEDSSessionContent.ps1 -DownloadLocation "C:\Temp\MAEDSS" -ConferenceId 2024
 
-  Downloads all MMS session content from all years to C:\Conferences\MMS\
+  Downloads all MAEDS session content from 2024 to C:\Temp\MAEDS\
 
 .EXAMPLE
-  .\Get-MMSSessionContent.ps1 -All -ExcludeSessionDetails;
+  .\Get-MAEDSSessionContent.ps1 -All
 
-  Downloads all MMS session content from all years to C:\Conferences\MMS\ BUT does not include a "Session Info.txt" file for each session containing the session details
+  Downloads all MAEDS session content from all years to C:\Conferences\MAEDS\
+
+.EXAMPLE
+  .\Get-MAEDSSessionContent.ps1 -All -ExcludeSessionDetails;
+
+  Downloads all MAEDS session content from all years to C:\Conferences\MAEDS\ BUT does not include a "Session Info.txt" file for each session containing the session details
 
 .LINK
-  Project URL - https://github.com/AndrewJNet/CopyMMSFiles
+  Project URL - https://github.com/chrisATautomatemystuff/CopyMAEDSFiles
 #>
 [cmdletbinding(PositionalBinding = $false)]
 Param(
-  [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MMS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
+  [Parameter(Mandatory = $false)][string]$DownloadLocation = "C:\Conferences\MAEDS", # could validate this: [ValidateScript({(Test-Path -Path (Split-Path $PSItem))})]
   [Parameter(Mandatory = $true, ParameterSetName = 'SingleEvent')]
-  [ValidateSet("2015", "2016", "2017", "2018", "de2018", "2019", "jazz", "miami", "2022atmoa", "2023atmoa","2023miami","2024atmoa","2024fll")]
+  [ValidateSet("2023","2024")]
   [string]$ConferenceId,
   [Parameter(Mandatory = $true, ParameterSetName = 'MultipleEvents', HelpMessage = "This needs to bwe a list or array of conference ids/years!")]
   [System.Collections.Generic.List[string]]$ConferenceList,
@@ -116,15 +118,15 @@ if($PSEdition -eq "Desktop" -or $isWindows){$win = $true}
 else
 { 
   $win = $false
-  if($DownloadLocation -eq "C:\Conferences\MMS"){$DownloadLocation = "$HOME\Downloads\MMSContent"}
+  if($DownloadLocation -eq "C:\Conferences\MAEDS"){$DownloadLocation = "$HOME\Downloads\MAEDSContent"}
 }
 
 ## Make sure there aren't any trailing backslashes:
 $DownloadLocation = $DownloadLocation.Trim('\')
 
 ## Setup
-$PublicContentYears = @('2015', '2016', '2017', '2019', 'jazz', 'miami', '2022atmoa', '2023atmoa')
-$PrivateContentYears = @('2018','de2018','2023miami','2024atmoa','2024fll')
+$PublicContentYears = @()
+$PrivateContentYears = @('2023','2024')
 $ConferenceYears = New-Object -TypeName System.Collections.Generic.List[string]
 [int]$PublicYearsCount = $PublicContentYears.Count
 [int]$PrivateYearsCount = $PrivateContentYears.Count
@@ -160,10 +162,10 @@ $ConferenceYears | ForEach-Object -Process {
   [string]$Year = $_
 
   if ($Year -in $PrivateContentYears) {
-    $creds = $host.UI.PromptForCredential('Sched Credentials', "Enter Credentials for the MMS Event: $Year", '', '')
+    $creds = $host.UI.PromptForCredential('Sched Credentials', "Enter Credentials for the MAEDS Event: $Year", '', '')
   }
 
-  $SchedBaseURL = "https://mms" + $Year + ".sched.com"
+  $SchedBaseURL = "https://maeds" + $Year + ".sched.com"
   $SchedLoginURL = $SchedBaseURL + "/login"
   Add-Type -AssemblyName System.Web
   $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
@@ -181,13 +183,13 @@ $ConferenceYears | ForEach-Object -Process {
     $body = "landing_conf=" + [System.Uri]::EscapeDataString($SchedBaseURL) + "&username=" + [System.Uri]::EscapeDataString($username) + "&password=" + [System.Uri]::EscapeDataString($password) + "&login="
 
     # SEND IT
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms -Method POST -Body $body
+    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable maeds -Method POST -Body $body
 
   } else {
-    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable mms
+    $web = Invoke-WebRequest $SchedLoginURL -SessionVariable maeds
   }
 
-  $SessionDownloadPath = $DownloadLocation + '\mms' + $Year
+  $SessionDownloadPath = $DownloadLocation + '\maeds' + $Year
   Write-Output "Logging in to $SchedBaseURL"
 
   ## Check if we connected (if required):
@@ -195,7 +197,7 @@ $ConferenceYears | ForEach-Object -Process {
     ##
     Write-Output "Downloaded content can be found in $SessionDownloadPath"
 
-    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $mms
+    $sched = Invoke-WebRequest -Uri $($SchedBaseURL + "/list/descriptions") -WebSession $maeds
     $links = $sched.Links
 
     # For indexing available downloads later
